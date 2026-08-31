@@ -84,3 +84,89 @@ plt.title("Emotion Distribution")
 plt.xlabel("Emotion")
 plt.ylabel("Count")
 plt.show()
+
+
+# Tokenization
+from tensorflow.keras.preprocessing.text import Tokenizer
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+import numpy as np
+
+max_tokens = 10000
+
+tokenizer = Tokenizer(
+    num_words=max_tokens,
+    oov_token="<unk>"
+)
+
+# Fit tokenizer only on training text
+tokenizer.fit_on_texts(train_df["text"])
+
+# Convert text into sequences
+train_sequence = tokenizer.texts_to_sequences(train_df["text"])
+test_sequence = tokenizer.texts_to_sequences(test_df["text"])
+val_sequence = tokenizer.texts_to_sequences(val_df["text"])
+
+
+# Padding
+max_length = 50
+
+train_sequence_padded = pad_sequences(
+    train_sequence,
+    maxlen=max_length,
+    padding="post",
+    truncating="post"
+)
+
+test_sequence_padded = pad_sequences(
+    test_sequence,
+    maxlen=max_length,
+    padding="post",
+    truncating="post"
+)
+
+val_sequence_padded = pad_sequences(
+    val_sequence,
+    maxlen=max_length,
+    padding="post",
+    truncating="post"
+)
+
+
+# Encode labels
+label_mapping = {
+    "sadness": 0,
+    "anger": 1,
+    "love": 2,
+    "surprise": 3,
+    "fear": 4,
+    "joy": 5
+}
+
+train_labels = train_labels.map(label_mapping)
+test_labels = test_labels.map(label_mapping)
+val_labels = val_labels.map(label_mapping)
+
+
+# Convert labels to NumPy arrays
+train_labels = np.array(train_labels)
+test_labels = np.array(test_labels)
+val_labels = np.array(val_labels)
+
+
+# Number of classes
+num_classes = len(np.unique(train_labels))
+
+print(f"Number of classes: {num_classes}")
+
+# Vocabulary and sentence length
+print(f"Vocabulary size: {len(tokenizer.word_index)}")
+print(f"Max sentence length: {train_sequence_padded.shape[1]}")
+
+# Check shapes
+print("Train sequence shape:", train_sequence_padded.shape)
+print("Test sequence shape:", test_sequence_padded.shape)
+print("Validation sequence shape:", val_sequence_padded.shape)
+
+print("Train labels shape:", train_labels.shape)
+print("Test labels shape:", test_labels.shape)
+print("Validation labels shape:", val_labels.shape)
