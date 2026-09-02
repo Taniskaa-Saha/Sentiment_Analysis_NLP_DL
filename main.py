@@ -89,7 +89,6 @@ plt.show()
 # Tokenization
 from tensorflow.keras.preprocessing.text import Tokenizer
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-import numpy as np
 
 max_tokens = 10000
 
@@ -170,3 +169,17 @@ print("Validation sequence shape:", val_sequence_padded.shape)
 print("Train labels shape:", train_labels.shape)
 print("Test labels shape:", test_labels.shape)
 print("Validation labels shape:", val_labels.shape)
+
+
+#Using Class Weights fot imbalanced datasets
+#class weights add weights, giving more importance to minority classes and helping the model learn better from imbalanced datasets.
+from sklearn.utils.class_weight import compute_class_weight
+
+class_weights = compute_class_weight(
+    class_weight="balanced",
+    classes=np.unique(train_labels),
+    y=train_labels
+)
+
+class_weight_dict = dict(enumerate(class_weights))
+print("Class weights:", class_weight_dict)
