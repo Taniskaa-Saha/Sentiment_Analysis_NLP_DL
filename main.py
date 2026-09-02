@@ -183,3 +183,12 @@ class_weights = compute_class_weight(
 
 class_weight_dict = dict(enumerate(class_weights))
 print("Class weights:", class_weight_dict)
+
+#Early Stopping
+from tensorflow.keras.callbacks import EarlyStopping
+
+early_stopping = EarlyStopping(
+    monitor="val_loss",
+    patience=3,
+    restore_best_weights=True
+)
