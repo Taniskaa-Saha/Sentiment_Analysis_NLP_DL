@@ -189,6 +189,39 @@ from tensorflow.keras.callbacks import EarlyStopping
 
 early_stopping = EarlyStopping(
     monitor="val_loss",
-    patience=3,
+    patience=3,             #epochs
     restore_best_weights=True
 )
+
+
+#IMPORT
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Embedding, SimpleRNN, LSTM, GRU, Dense, Dropout
+
+#RNN Model
+model=Sequential([
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    SimpleRNN(units=128, return_sequences=True),
+    Dropout(0.5),
+    SimpleRNN(units=64),
+    Dropout(0.5),
+    Dense(units=num_classes, activation='softmax') #output layer
+])
+
+model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+#Train the model
+history = model.fit(
+    train_sequence_padded,
+    train_labels,
+    validation_data=(test_sequence_padded, test_labels),
+    epochs=20,
+    batch_size=32,
+    #validation_split=0.2,
+    class_weight=class_weight_dict,
+    callbacks=[early_stopping]
+)
+
+rnn_loss, rnn_acuracy = model.evaluate(test_sequence_padded,test_labels)
+print("RNN loss:{rnn_loss}")
+print(f"RNN accuracy:{rnn_acuracy}")
