@@ -223,5 +223,32 @@ history = model.fit(
 )
 
 rnn_loss, rnn_acuracy = model.evaluate(test_sequence_padded,test_labels)
-print("RNN loss:{rnn_loss}")
+print(f"RNN loss:{rnn_loss}")
 print(f"RNN accuracy:{rnn_acuracy}")
+
+#LSTM Model
+lstm_model=Sequential([
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    LSTM(units=128, return_sequences=True),
+    Dropout(0.5),
+    LSTM(units=64),
+    Dropout(0.5),
+    Dense(units=num_classes, activation='softmax') #output layer
+])
+
+lstm_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+history1 = lstm_model.fit(
+    train_sequence_padded,
+    train_labels,
+    validation_data=(test_sequence_padded, test_labels),
+    epochs=20,
+    batch_size=32,
+    #validation_split=0.2,
+    class_weight=class_weight_dict,
+    callbacks=[early_stopping]
+)
+
+lstm_loss, lstm_acuracy = lstm_model.evaluate(test_sequence_padded,test_labels)
+print(f"LSTM loss:{lstm_loss}")
+print(f"LSTM accuracy:{lstm_acuracy}")
