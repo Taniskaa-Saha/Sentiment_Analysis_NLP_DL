@@ -306,3 +306,13 @@ history3 = gru_model.fit(
 gru_loss, gru_acuracy = gru_model.evaluate(test_sequence_padded,test_labels)
 print(f"GRU loss:{gru_loss}")
 print(f"GRU accuracy:{gru_acuracy}")
+
+
+#ranking and selection
+result_df =pd.DataFrame({
+    'Model':['RNN','LSTM','BiLSTM','GRU'],
+    'Test Loss':[rnn_loss,lstm_loss,BiLSTM_loss,gru_loss],
+    'Test Accuracy':[rnn_acuracy,lstm_acuracy,BiLSTM_acuracy,gru_acuracy]
+}).sort_values(by='Test Accuracy',ascending=False)
+
+print(result_df)
