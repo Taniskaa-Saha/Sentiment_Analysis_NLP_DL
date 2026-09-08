@@ -307,6 +307,35 @@ gru_loss, gru_acuracy = gru_model.evaluate(test_sequence_padded,test_labels)
 print(f"GRU loss:{gru_loss}")
 print(f"GRU accuracy:{gru_acuracy}")
 
+#BiGRU Model(Bidirectional Gated Recurrent Unit)
+BiGRU_model=Sequential([
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Bidirectional(GRU(units=128, return_sequences=True)),
+    Dropout(0.5),
+    Bidirectional(GRU(units=64)),
+    Dropout(0.5),
+    Dense(units=num_classes, activation='softmax') #output layer
+])
+
+BiGRU_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+
+BiGRU_model.summary()
+
+history4 = BiGRU_model.fit(
+    train_sequence_padded,
+    train_labels,
+    validation_data=(test_sequence_padded, test_labels),
+    epochs=20,
+    batch_size=32,
+    #validation_split=0.2,
+    class_weight=class_weight_dict,
+    callbacks=[early_stopping]
+)
+
+BiGRU_loss, BiGRU_acuracy = BiGRU_model.evaluate(test_sequence_padded,test_labels)
+print(f"BiGRU loss:{BiGRU_loss}")
+print(f"BiGRU accuracy:{BiGRU_acuracy}")
+
 
 #ranking and selection
 result_df =pd.DataFrame({
