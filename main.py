@@ -197,9 +197,10 @@ early_stopping = EarlyStopping(
 #IMPORT
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Embedding, SimpleRNN, LSTM, GRU, Dense, Dropout
+from tensorflow.keras.layers import Bidirectional
 
 #RNN Model
-model=Sequential([
+rnn_model=Sequential([
     Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
     SimpleRNN(units=128, return_sequences=True),
     Dropout(0.5),
@@ -208,10 +209,10 @@ model=Sequential([
     Dense(units=num_classes, activation='softmax') #output layer
 ])
 
-model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+rnn_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
 
 #Train the model
-history = model.fit(
+history = rnn_model.fit(
     train_sequence_padded,
     train_labels,
     validation_data=(test_sequence_padded, test_labels),
@@ -222,7 +223,7 @@ history = model.fit(
     callbacks=[early_stopping]
 )
 
-rnn_loss, rnn_acuracy = model.evaluate(test_sequence_padded,test_labels)
+rnn_loss, rnn_acuracy = rnn_model.evaluate(test_sequence_padded,test_labels)
 print(f"RNN loss:{rnn_loss}")
 print(f"RNN accuracy:{rnn_acuracy}")
 
@@ -339,9 +340,9 @@ print(f"BiGRU accuracy:{BiGRU_acuracy}")
 
 #ranking and selection
 result_df =pd.DataFrame({
-    'Model':['RNN','LSTM','BiLSTM','GRU'],
-    'Test Loss':[rnn_loss,lstm_loss,BiLSTM_loss,gru_loss],
-    'Test Accuracy':[rnn_acuracy,lstm_acuracy,BiLSTM_acuracy,gru_acuracy]
+    'Model':['RNN','LSTM','BiLSTM','GRU','BiGRU'],
+    'Test Loss':[rnn_loss,lstm_loss,BiLSTM_loss,gru_loss,BiGRU_loss],
+    'Test Accuracy':[rnn_acuracy,lstm_acuracy,BiLSTM_acuracy,gru_acuracy,BiGRU_acuracy]
 }).sort_values(by='Test Accuracy',ascending=False)
 
 print(result_df)
