@@ -339,10 +339,21 @@ print(f"BiGRU accuracy:{BiGRU_acuracy}")
 
 
 #ranking and selection
-result_df =pd.DataFrame({
-    'Model':['RNN','LSTM','BiLSTM','GRU','BiGRU'],
-    'Test Loss':[rnn_loss,lstm_loss,BiLSTM_loss,gru_loss,BiGRU_loss],
-    'Test Accuracy':[rnn_acuracy,lstm_acuracy,BiLSTM_acuracy,gru_acuracy,BiGRU_acuracy]
-}).sort_values(by='Test Accuracy',ascending=False)
+result_df = pd.DataFrame({
+    'Model': ['RNN', 'LSTM', 'BiLSTM', 'GRU', 'BiGRU'],
+    'Test Loss': [rnn_loss, lstm_loss, BiLSTM_loss, gru_loss, BiGRU_loss],
+    'Test Accuracy': [rnn_acuracy, lstm_acuracy, BiLSTM_acuracy, gru_acuracy, BiGRU_acuracy]
+}).sort_values(by='Test Accuracy', ascending=False)
 
 print(result_df)
+
+
+#confusion matrix
+from sklearn.metrics import classification_report, confusion_matrix
+
+BiGRU_predictions = np.argmax(BiGRU_model.predict(test_sequence_padded),axis=1)
+sns.heatmap(confusion_matrix(test_labels, BiGRU_predictions),annot=True,fmt='d',cmap='Blues')
+plt.title('Confusion Matrix')
+plt.xlabel('Predicted Labels')
+plt.ylabel('True Labels')
+plt.show()
