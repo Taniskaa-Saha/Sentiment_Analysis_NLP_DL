@@ -357,3 +357,23 @@ plt.title('Confusion Matrix')
 plt.xlabel('Predicted Labels')
 plt.ylabel('True Labels')
 plt.show()
+
+
+#checking on new data
+sample_text=[
+ "I cannot believe how happy I am right now, this is amazing!",
+ "I feel so alone and hopeless today.",
+ "I am furious that they canceled the trip at the last minute.",
+ "I feel terrified when walking down dark alleyways alone.",
+ "I was shocked and completely surprised to see her."
+]
+
+sample_sequence=tokenizer.texts_to_sequences(sample_text)
+sample_sequence_padded=pad_sequences(sample_sequence, maxlen=50, padding='post', truncating = 'post')
+
+sample_predictions=np.argmax(BiGRU_model.predict(sample_sequence_padded),axis=1)
+sample_predictions
+
+for i in range(len(sample_text)):
+  print(f"Text: {sample_text[i]}\n")
+  print(f"Predicted Emotion: {label_name[sample_predictions[i]]}")
