@@ -377,3 +377,18 @@ sample_predictions
 for i in range(len(sample_text)):
   print(f"Text: {sample_text[i]}\n")
   print(f"Predicted Emotion: {label_name[sample_predictions[i]]}")
+
+
+#saving the model and tokenizer
+import os
+import pickle
+
+model_dir='Artifacts'
+os.makedirs(model_dir,exist_ok=True)#folder
+
+#save model
+BiGRU_model.save(os.path.join(model_dir,'BiGRU_model.keras'))
+
+#save tokenizer model
+with open(os.path.join(model_dir,'tokenizer.pkl'),'wb') as file:
+  pickle.dump(tokenizer, file)
