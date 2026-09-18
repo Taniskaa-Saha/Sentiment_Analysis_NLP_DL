@@ -40,7 +40,7 @@ def preprocess_text(text:str)-> str:
     text=re.sub(r"\s+", " ", text).strip()
     return text
 
-class TextRequest(BaseModel):
+class TextInput(BaseModel):
     text: str = Field(..., 
                       min_length=1,
                       max_length=2000,
@@ -54,3 +54,8 @@ class PredictionResponse(BaseModel):
     predicted_emotion: str
     confidence: float
     all_probabilities: dict[str, float]
+
+class HealthResponse(BaseModel):
+    status: str
+    model_loaded: bool
+    
