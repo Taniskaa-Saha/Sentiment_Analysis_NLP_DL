@@ -1,4 +1,4 @@
-from fastapi import FastAPI, StaticFiles
+from api import FastAPI, StaticFiles
 from pydantic import BaseModel, Field
 from keras.models import load_model
 from contextlib import asynccontextmanager
