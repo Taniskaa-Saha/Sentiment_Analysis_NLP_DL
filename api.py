@@ -110,4 +110,6 @@ def predict_emotion(input_data: TextInput):
     cleaned_text = preprocess_text(input_data.text)
     tokenized_text = tokenizer.texts_to_sequences([cleaned_text])
     padded_text = pad_sequences(tokenized_text, maxlen=max_sequence_length, padding='post', truncating='post')
-    
+
+    probabilities = BiGRU_model.predict(padded_text)[0]
+    all_probabilities = {emotion: float(prob) for emotion, prob in zip(emotion_classes, probabilities)}
