@@ -1,16 +1,13 @@
-from api import FastAPI, StaticFiles
+from api import FastAPI, StaticFiles, HTTPException
 from pydantic import BaseModel, Field
 from keras.models import load_model
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from tensorflow.keras.preprocessing.sequence import pad_sequences
+from tensorflow.keras.preprocessing.text import Tokenizer
 import re
 import pickle
-
-app=FastAPI()
-
-@app.get("/")
-def greet():
-    return { "Hello, World!"}
 
 
 #model path
@@ -80,6 +77,8 @@ async def lifespan(app:FastAPI):
     dl_model.clear()  #clear the model and tokenizer from memory when server shuts down
 
 #mount static files to  FAST api
+app=FastAPI()
+
 #enable CORS (Cross-Origin Resource Sharing) to allow requests from any origin
 app.add_middleware(
     CORSMiddleware,
@@ -91,3 +90,24 @@ app.add_middleware(
 
 app.mount('/static', StaticFiles(directory='static'), name='static')
 
+#API endpoints
+@app.get('/', include_in_schema=False)
+def server_ui():
+    return FileResponse('static/index.html')
+
+@app.get('/health', response_model=HealthResponse)
+def health_check():
+    return HealthResponse(status="server is running", model_loaded=bool(dl_model))
+
+@app.post('/predict', response_model=PredictionResponse)
+def predict_emotion(input_data: TextInput):
+    BiGRU_model = dl_model.get("BiGRU")
+    tokenizer = dl_model.get("Tokenizer ")
+
+    if BiGRU_model is None or tokenizer is None:
+        raise HTTPException(status_code=503, detail="Model or tokenizer not loaded. Please try again later.")
+
+    cleaned_text = preprocess_text(input_data.text)
+    tokenized_text = tokenizer.texts_to_sequences([cleaned_text])
+    padded_text = pad_sequences(tokenized_text, maxlen=max_sequence_length, padding='post', truncating='post')
+    
