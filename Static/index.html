@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#080b14" />
+    <title>EmotiSense — AI Emotion Analysis</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+    <h1>App is running</h1>
+    <div class="ambient ambient-one"></div>
+    <div class="ambient ambient-two"></div>
+    <div class="grid-overlay"></div>
+
+    <header class="topbar">
+        <a class="brand" href="/">
+        <span class="brand-mark"><span></span></span>
+        <span>EmotiSense</span>
+        </a>
+        <div class="status-pill" id="statusPill">
+        <span class="status-dot"></span>
+        <span id="statusText">Checking AI engine</span>
+        </div>
+    </header>
+
+    <main class="shell">
+        <section class="hero">
+        <div class="eyebrow"><span class="pulse"></span> BI-GRU · NLP · REAL-TIME</div>
+        <h1>Understand the emotion<br><em>behind the words.</em></h1>
+        <p class="hero-copy">
+            A clean, real-time emotion classifier powered by your BiGRU model.
+            Write naturally and let the model read the signal.
+        </p>
+        </section>
+
+        <section class="workspace">
+        <div class="composer card">
+            <div class="card-head">
+            <div>
+                <span class="section-label">INPUT</span>
+                <h2>What are you feeling?</h2>
+            </div>
+            <button class="ghost-btn" id="clearBtn" type="button">Clear</button>
+            </div>
+
+            <div class="textarea-wrap">
+            <textarea id="textInput" maxlength="2000"
+                placeholder="Write a thought, message, or sentence…"
+                spellcheck="true"></textarea>
+            <div class="textarea-bottom">
+                <span id="charCount">0 / 2000</span>
+                <span>Press <kbd>Ctrl</kbd> + <kbd>Enter</kbd> to analyze</span>
+            </div>
+            </div>
+
+            <div class="examples">
+            <span class="examples-label">Try one</span>
+            <button type="button" class="example-chip">I can't stop smiling today.</button>
+            <button type="button" class="example-chip">I am furious about what happened.</button>
+            <button type="button" class="example-chip">I feel completely alone.</button>
+            <button type="button" class="example-chip">That surprise caught me off guard!</button>
+            </div>
+
+            <button class="analyze-btn" id="analyzeBtn" type="button">
+            <span class="btn-content">
+                <span class="btn-icon">✦</span>
+                <span>Analyze emotion</span>
+            </span>
+            <span class="btn-arrow">→</span>
+            </button>
+
+            <div class="error-box" id="errorBox" role="alert"></div>
+        </div>
+
+        <div class="result card" id="resultCard">
+            <div class="card-head">
+            <div>
+                <span class="section-label">RESULT</span>
+                <h2>Emotion signal</h2>
+            </div>
+            <span class="result-badge" id="resultBadge">WAITING</span>
+            </div>
+
+            <div class="emotion-stage" id="emotionStage">
+            <div class="orbit orbit-a"></div>
+            <div class="orbit orbit-b"></div>
+            <div class="emotion-core" id="emotionCore">
+                <span id="emotionEmoji">✦</span>
+            </div>
+            </div>
+
+            <div class="emotion-name" id="emotionName">—</div>
+            <div class="confidence" id="confidence">Analyze a sentence to see the model's confidence.</div>
+
+            <div class="meter">
+            <div class="meter-label">
+                <span>Confidence</span>
+                <strong id="confidenceValue">0%</strong>
+            </div>
+            <div class="meter-track"><span id="confidenceBar"></span></div>
+            </div>
+
+            <div class="probabilities">
+            <div class="prob-title">
+                <span>Probability distribution</span>
+                <span id="distributionState">Awaiting input</span>
+            </div>
+            <div id="probabilityList"></div>
+            </div>
+        </div>
+        </section>
+
+        <section class="insight-row">
+        <div class="mini-card">
+            <span class="mini-icon">01</span>
+            <div><strong>Preprocess</strong><small>Clean & normalize text</small></div>
+        </div>
+        <div class="mini-line"></div>
+        <div class="mini-card">
+            <span class="mini-icon">02</span>
+            <div><strong>BiGRU</strong><small>Read context bidirectionally</small></div>
+        </div>
+        <div class="mini-line"></div>
+        <div class="mini-card">
+            <span class="mini-icon">03</span>
+            <div><strong>Classify</strong><small>Return six emotion signals</small></div>
+        </div>
+        </section>
+
+        <footer>
+        <span>EmotiSense</span>
+        <span>FastAPI · TensorFlow · BiGRU</span>
+        <span>Built for exploration, not diagnosis.</span>
+        </footer>
+    </main>
+
+    <script src="/static/script.js"></script>
+</body>
+</html>
