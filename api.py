@@ -95,12 +95,12 @@ app.add_middleware(
 )
 
 #app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/static', StaticFiles(directory=BASE_DIR / "static"), name='static')
+app.mount('/static', StaticFiles(directory=BASE_DIR / "Static"), name='static')
 
 #API endpoints
 @app.get('/', include_in_schema=False)
 def server_ui():
-    return FileResponse(BASE_DIR / "static" / "index.html")
+    return FileResponse(BASE_DIR / "Static" / "index.html")
 
 @app.get('/health', response_model=HealthResponse)
 def health_check():
