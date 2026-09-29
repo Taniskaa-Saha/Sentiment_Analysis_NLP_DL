@@ -37,12 +37,18 @@ emotion_emojis = {
 }
 
 #preprocess upcomming text
-def preprocess_text(text:str)-> str:
-    #lowercase the text
-    text=text.lower()
-    text=re.sub(r"'", "", text)
-    text=re.sub(r"[^a-z0-9\s]", " ", text)
-    text=re.sub(r"\s+", " ", text).strip()
+# preprocess upcoming text
+def preprocess_text(text: str) -> str:
+    text = text.lower()
+    text = text.replace("cannot", "can not")
+    text = re.sub(r"\bcan'?t\b", "can not", text)
+    text = re.sub(r"\bwon'?t\b", "will not", text)
+    text = re.sub(
+        r"\b(did|do|does|is|was|are|were|have|has|had|could|would|should)n'?t\b",
+        r"\1 not",
+        text
+    )
+    text = text.replace("'", "")
     return text
 
 class TextInput(BaseModel):
