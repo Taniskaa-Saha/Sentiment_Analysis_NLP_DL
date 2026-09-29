@@ -27,6 +27,52 @@ val_df = pd.read_csv(
 )
 
 
+import re, random
+random.seed(42)
+
+def clean_text(t):
+    t = t.lower()
+    t = t.replace("cannot", "can not")
+    t = re.sub(r"\bcan'?t\b", "can not", t)
+    t = re.sub(r"\bwon'?t\b", "will not", t)
+    t = re.sub(r"\b(did|do|does|is|was|are|were|have|has|had|could|would|should)n'?t\b", r"\1 not", t)
+    t = t.replace("'", "")
+    return t
+
+for df in (train_df, val_df, test_df):
+    df["text"] = df["text"].apply(clean_text)
+
+# Synthetic negation examples (training set only)
+joy_words = ["happy", "glad", "joyful", "cheerful", "delighted", "excited", "pleased", "thrilled",
+             "content", "great", "wonderful", "fine"]
+sad_words = ["sad", "unhappy", "depressed", "miserable", "heartbroken", "gloomy", "hopeless", "lonely",
+             "upset", "down", "blue"]
+subjects  = ["i am", "i feel", "i was", "i am feeling", "we are", "she is", "he is", "they are"]
+neg_t = [
+    "{s} not {w}", "{s} never {w}", "{s} not at all {w}", "{s} not very {w}",
+    "i do not feel {w}", "i did not feel {w}", "i do not feel very {w}",
+    "i did not feel so {w}", "i was not feeling {w}", "i am not feeling {w}"
+]
+pos_t = ["{s} {w}", "{s} really {w}", "{s} so {w}"]
+
+rows = []
+for _ in range(3000):
+    s = random.choice(subjects)
+    if random.random() < 0.5:
+        rows.append((random.choice(neg_t).format(s=s, w=random.choice(joy_words)), "sadness"))
+    else:
+        rows.append((random.choice(neg_t).format(s=s, w=random.choice(sad_words)), "joy"))
+for _ in range(1500):
+    s = random.choice(subjects)
+    if random.random() < 0.5:
+        rows.append((random.choice(pos_t).format(s=s, w=random.choice(joy_words)), "joy"))
+    else:
+        rows.append((random.choice(pos_t).format(s=s, w=random.choice(sad_words)), "sadness"))
+
+aug_df = pd.DataFrame(rows, columns=["text", "emotion"])
+train_df = pd.concat([train_df, aug_df], ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
+
+
 # Separate text and emotion labels
 train_text = train_df["text"]
 train_labels = train_df["emotion"]
@@ -201,7 +247,7 @@ from tensorflow.keras.layers import Bidirectional
 
 #RNN Model
 rnn_model=Sequential([
-    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50, mask_zero=True),
     SimpleRNN(units=128, return_sequences=True),
     Dropout(0.5),
     SimpleRNN(units=64),
@@ -215,12 +261,12 @@ rnn_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metr
 history = rnn_model.fit(
     train_sequence_padded,
     train_labels,
-    validation_data=(test_sequence_padded, test_labels),
     epochs=20,
     batch_size=32,
     #validation_split=0.2,
     class_weight=class_weight_dict,
-    callbacks=[early_stopping]
+    callbacks=[early_stopping],
+    validation_data=(val_sequence_padded, val_labels)
 )
 
 rnn_loss, rnn_acuracy = rnn_model.evaluate(test_sequence_padded,test_labels)
@@ -229,7 +275,7 @@ print(f"RNN accuracy:{rnn_acuracy}")
 
 #LSTM Model
 lstm_model=Sequential([
-    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50, mask_zero=True),
     LSTM(units=128, return_sequences=True),
     Dropout(0.5),
     LSTM(units=64),
@@ -242,12 +288,12 @@ lstm_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', met
 history1 = lstm_model.fit(
     train_sequence_padded,
     train_labels,
-    validation_data=(test_sequence_padded, test_labels),
     epochs=20,
     batch_size=32,
     #validation_split=0.2,
     class_weight=class_weight_dict,
-    callbacks=[early_stopping]
+    callbacks=[early_stopping],
+    validation_data=(val_sequence_padded, val_labels)
 )
 
 lstm_loss, lstm_acuracy = lstm_model.evaluate(test_sequence_padded,test_labels)
@@ -256,7 +302,7 @@ print(f"LSTM accuracy:{lstm_acuracy}")
 
 #Bidirectional LSTM Model
 BiLSTM_model=Sequential([
-    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50, mask_zero=True),
     Bidirectional(LSTM(units=128, return_sequences=True)),
     Dropout(0.5),
     Bidirectional(LSTM(units=64)),
@@ -269,12 +315,12 @@ BiLSTM_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', m
 history2 = BiLSTM_model.fit(
     train_sequence_padded,
     train_labels,
-    validation_data=(test_sequence_padded, test_labels),
     epochs=20,
     batch_size=32,
     #validation_split=0.2,
     class_weight=class_weight_dict,
-    callbacks=[early_stopping]
+    callbacks=[early_stopping],
+    validation_data=(val_sequence_padded, val_labels)
 )
 
 BiLSTM_loss, BiLSTM_acuracy = BiLSTM_model.evaluate(test_sequence_padded,test_labels)
@@ -283,7 +329,7 @@ print(f"BiLSTM accuracy:{BiLSTM_acuracy}")
 
 #Standard GRU Model(Gated Recurrent Unit)
 gru_model=Sequential([
-    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50, mask_zero=True),
     GRU(units=128, return_sequences=True),
     Dropout(0.5),
     GRU(units=64),
@@ -296,12 +342,12 @@ gru_model.compile(optimizer='adam', loss='sparse_categorical_crossentropy', metr
 history3 = gru_model.fit(
     train_sequence_padded,
     train_labels,
-    validation_data=(test_sequence_padded, test_labels),
     epochs=20,
     batch_size=32,
     #validation_split=0.2,
     class_weight=class_weight_dict,
-    callbacks=[early_stopping]
+    callbacks=[early_stopping],
+    validation_data=(val_sequence_padded, val_labels)
 )
 
 gru_loss, gru_acuracy = gru_model.evaluate(test_sequence_padded,test_labels)
@@ -310,7 +356,7 @@ print(f"GRU accuracy:{gru_acuracy}")
 
 #BiGRU Model(Bidirectional Gated Recurrent Unit)
 BiGRU_model=Sequential([
-    Embedding(input_dim=max_tokens, output_dim=128, input_length=50),
+    Embedding(input_dim=max_tokens, output_dim=128, input_length=50, mask_zero=True),
     Bidirectional(GRU(units=128, return_sequences=True)),
     Dropout(0.5),
     Bidirectional(GRU(units=64)),
@@ -325,12 +371,12 @@ BiGRU_model.summary()
 history4 = BiGRU_model.fit(
     train_sequence_padded,
     train_labels,
-    validation_data=(test_sequence_padded, test_labels),
     epochs=20,
     batch_size=32,
     #validation_split=0.2,
     class_weight=class_weight_dict,
-    callbacks=[early_stopping]
+    callbacks=[early_stopping],
+    validation_data=(val_sequence_padded, val_labels)
 )
 
 BiGRU_loss, BiGRU_acuracy = BiGRU_model.evaluate(test_sequence_padded,test_labels)
@@ -368,16 +414,23 @@ sample_text=[
  "I was shocked and completely surprised to see her."
 ]
 
+sample_text = [clean_text(t) for t in sample_text]
 sample_sequence=tokenizer.texts_to_sequences(sample_text)
 sample_sequence_padded=pad_sequences(sample_sequence, maxlen=50, padding='post', truncating = 'post')
 
 sample_predictions=np.argmax(BiGRU_model.predict(sample_sequence_padded),axis=1)
-sample_predictions
 
+id_to_label = {v: k for k, v in label_mapping.items()}
 for i in range(len(sample_text)):
-  print(f"Text: {sample_text[i]}\n")
-  print(f"Predicted Emotion: {label_name[sample_predictions[i]]}")
+    print(f"Text: {sample_text[i]}")
+    print(f"Predicted Emotion: {id_to_label[sample_predictions[i]]}\n")
 
+neg_tests = ["I am happy", "I am not happy", "I don't feel sad", "I am not sad", "I never felt joyful"]
+neg_tests = [clean_text(t) for t in neg_tests]
+seq = pad_sequences(tokenizer.texts_to_sequences(neg_tests), maxlen=50, padding="post", truncating="post")
+preds = np.argmax(BiGRU_model.predict(seq), axis=1)
+for t, p in zip(neg_tests, preds):
+    print(f"{t!r} -> {id_to_label[p]}")
 
 #saving the model and tokenizer
 import os
