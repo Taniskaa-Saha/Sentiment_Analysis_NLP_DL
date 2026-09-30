@@ -1,43 +1,42 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
-from keras.models import load_model
+import pickle
+import re
 from contextlib import asynccontextmanager
+from pathlib import Path
+
+import numpy as np
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+from keras.models import load_model
+from pydantic import BaseModel, Field
 from tensorflow.keras.preprocessing.sequence import pad_sequences
-from tensorflow.keras.preprocessing.text import Tokenizer
-from pathlib import Path
-import numpy as np
-import re
-import pickle
+from tensorflow.keras.preprocessing.text import Tokenizer  # noqa: F401  (needed so pickle can rebuild the tokenizer)
 
 
-#model path
+# ---------------------------------------------------------------------------
+# Paths
+# NOTE: Render runs Linux, where folder names are case-sensitive.
+# These names must match the folders in your GitHub repo EXACTLY.
+# ---------------------------------------------------------------------------
 BASE_DIR = Path(__file__).resolve().parent
-model_path = BASE_DIR / "ARTIFACTS" / "BiGRU_model.keras"
+ARTIFACTS_DIR = BASE_DIR / "Artifacts"   # training code saves to "Artifacts"
+STATIC_DIR = BASE_DIR / "Static"
 
-#Tokenizer path
-tokenizer_path = BASE_DIR / "ARTIFACTS" / "tokenizer.pkl"
+MODEL_PATH = ARTIFACTS_DIR / "BiGRU_model.keras"
+TOKENIZER_PATH = ARTIFACTS_DIR / "tokenizer.pkl"
 
-#MaxSequence Length
-max_sequence_length = 50
+# Must match the value used during training
+MAX_SEQUENCE_LENGTH = 50
 
-#emotion classes
-emotion_classes = ['sadness', 'anger', 'love', 'surprise', 'fear', 'joy']
+# Must match the training label_mapping order:
+# sadness=0, anger=1, love=2, surprise=3, fear=4, joy=5
+EMOTION_CLASSES = ["sadness", "anger", "love", "surprise", "fear", "joy"]
 
-#emotion emojis
-emotion_emojis = {
-    'sadness': '😢',
-    'anger': '😠',
-    'love': '❤️',
-    'surprise': '😲',
-    'fear': '😨',
-    'joy': '😄',
-}
 
-#preprocess upcomming text
-# preprocess upcoming text
+# ---------------------------------------------------------------------------
+# Text preprocessing (identical to clean_text in the training code)
+# ---------------------------------------------------------------------------
 def preprocess_text(text: str) -> str:
     text = text.lower()
     text = text.replace("cannot", "can not")
@@ -46,19 +45,24 @@ def preprocess_text(text: str) -> str:
     text = re.sub(
         r"\b(did|do|does|is|was|are|were|have|has|had|could|would|should)n'?t\b",
         r"\1 not",
-        text
+        text,
     )
     text = text.replace("'", "")
     return text
 
+
+# ---------------------------------------------------------------------------
+# Request / response schemas
+# ---------------------------------------------------------------------------
 class TextInput(BaseModel):
-    text: str = Field(..., 
-                      min_length=1,
-                      max_length=2000,
-                      description="The text to analyze for sentiment",
-                      json_schema_extra={
-                          "example": "I am so happy today!"}
-                          )
+    text: str = Field(
+        ...,
+        min_length=1,
+        max_length=2000,
+        description="The text to analyze for emotion",
+        json_schema_extra={"example": "I am so happy today!"},
+    )
+
 
 class PredictionResponse(BaseModel):
     text: str
@@ -66,80 +70,94 @@ class PredictionResponse(BaseModel):
     confidence: float
     all_probabilities: dict[str, float]
 
+
 class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
 
 
-#Model loading and Lifespan Management
-#Load the model and tokenizer once the server stats up.
+# ---------------------------------------------------------------------------
+# Model loading and lifespan management
+# The model and tokenizer are loaded once when the server starts.
+# ---------------------------------------------------------------------------
+ml_assets: dict = {}
 
-dl_model = {}
-async def lifespan(app:FastAPI):
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     print("Loading model and tokenizer...")
-    #global model, tokenizer
-    dl_model["BiGRU"] = load_model(model_path)   #BiGRU model
-    with open(tokenizer_path, "rb") as file:
-        dl_model["Tokenizer"] = pickle.load(file)
+    ml_assets["model"] = load_model(MODEL_PATH)
+    with open(TOKENIZER_PATH, "rb") as file:
+        ml_assets["tokenizer"] = pickle.load(file)
     print("Model and tokenizer loaded.")
 
-    yield #pause, model Is loaded and softer is running at this point model waits for request.
-    dl_model.clear()  #clear the model and tokenizer from memory when server shuts down
+    yield  # server runs and handles requests here
 
-#mount static files to  FAST api
-app=FastAPI(
-    lifespan=lifespan,
-)
+    ml_assets.clear()  # free memory on shutdown
 
-#enable CORS (Cross-Origin Resource Sharing) to allow requests from any origin
+
+app = FastAPI(title="Emotion Detection API", lifespan=lifespan)
+
+# CORS: no cookies/auth are used, so credentials are disabled.
+# (allow_origins=["*"] together with allow_credentials=True is invalid.)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-#app.mount('/static', StaticFiles(directory='static'), name='static')
-app.mount('/static', StaticFiles(directory=BASE_DIR / "Static"), name='static')
+# Serve the HTML/CSS/JS frontend
+app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
-#API endpoints
-@app.get('/', include_in_schema=False)
+
+# ---------------------------------------------------------------------------
+# Endpoints
+# ---------------------------------------------------------------------------
+@app.get("/", include_in_schema=False)
 def server_ui():
-    return FileResponse(BASE_DIR / "Static" / "index.html")
+    return FileResponse(STATIC_DIR / "index.html")
 
-@app.get('/health', response_model=HealthResponse)
+
+@app.get("/health", response_model=HealthResponse)
 def health_check():
-    return HealthResponse(status="server is running", model_loaded=bool(dl_model))
+    return HealthResponse(
+        status="server is running",
+        model_loaded="model" in ml_assets and "tokenizer" in ml_assets,
+    )
 
-@app.post('/predict', response_model=PredictionResponse)
+
+@app.post("/predict", response_model=PredictionResponse)
 def predict_emotion(input_data: TextInput):
-    BiGRU_model = dl_model.get("BiGRU")
-    tokenizer = dl_model.get("Tokenizer")
+    model = ml_assets.get("model")
+    tokenizer = ml_assets.get("tokenizer")
 
-    if BiGRU_model is None or tokenizer is None:
-        raise HTTPException(status_code=503, detail="Model or tokenizer not loaded. Please try again later.")
-
-    cleaned_text = preprocess_text(input_data.text)
-    tokenized_text = tokenizer.texts_to_sequences([cleaned_text])
-    print(cleaned_text)
-    padded_text = pad_sequences(
-        tokenized_text, 
-        maxlen=max_sequence_length, 
-        padding='post', 
-        truncating='post'
+    if model is None or tokenizer is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Model or tokenizer not loaded. Please try again later.",
         )
 
-    probabilities = BiGRU_model.predict(padded_text)[0]
-    top_emotion_index = int(np.argmax(probabilities))
+    cleaned_text = preprocess_text(input_data.text)
+    sequence = tokenizer.texts_to_sequences([cleaned_text])
+    padded = pad_sequences(
+        sequence,
+        maxlen=MAX_SEQUENCE_LENGTH,
+        padding="post",
+        truncating="post",
+    )
+
+    probabilities = model.predict(padded, verbose=0)[0]
+    top_index = int(np.argmax(probabilities))
+
     all_probabilities = {
-        label: float(prob) 
-        for prob, label in zip(probabilities, emotion_classes)
+        label: float(prob) for label, prob in zip(EMOTION_CLASSES, probabilities)
     }
 
     return PredictionResponse(
         text=input_data.text,
-        predicted_emotion=emotion_classes[top_emotion_index],
-        confidence=float(probabilities[top_emotion_index]),
-        all_probabilities=all_probabilities
+        predicted_emotion=EMOTION_CLASSES[top_index],
+        confidence=float(probabilities[top_index]),
+        all_probabilities=all_probabilities,
     )
