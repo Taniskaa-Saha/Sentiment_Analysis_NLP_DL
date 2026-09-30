@@ -33,6 +33,10 @@ MAX_SEQUENCE_LENGTH = 50
 # sadness=0, anger=1, love=2, surprise=3, fear=4, joy=5
 EMOTION_CLASSES = ["sadness", "anger", "love", "surprise", "fear", "joy"]
 
+# If the top probability is below this value, the API answers "uncertain"
+# instead of forcing one of the six emotions. Tune it by testing (0.4 to 0.6).
+CONFIDENCE_THRESHOLD = 0.5
+
 
 # ---------------------------------------------------------------------------
 # Text preprocessing (identical to clean_text in the training code)
@@ -155,9 +159,14 @@ def predict_emotion(input_data: TextInput):
         label: float(prob) for label, prob in zip(EMOTION_CLASSES, probabilities)
     }
 
+    confidence = float(probabilities[top_index])
+    predicted_emotion = (
+        EMOTION_CLASSES[top_index] if confidence >= CONFIDENCE_THRESHOLD else "uncertain"
+    )
+
     return PredictionResponse(
         text=input_data.text,
-        predicted_emotion=EMOTION_CLASSES[top_index],
-        confidence=float(probabilities[top_index]),
+        predicted_emotion=predicted_emotion,
+        confidence=confidence,
         all_probabilities=all_probabilities,
     )
