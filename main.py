@@ -42,36 +42,132 @@ def clean_text(t):
 for df in (train_df, val_df, test_df):
     df["text"] = df["text"].apply(clean_text)
 
-# Synthetic negation examples (training set only)
-joy_words = ["happy", "glad", "joyful", "cheerful", "delighted", "excited", "pleased", "thrilled",
-             "content", "great", "wonderful", "fine"]
-sad_words = ["sad", "unhappy", "depressed", "miserable", "heartbroken", "gloomy", "hopeless", "lonely",
-             "upset", "down", "blue"]
-subjects  = ["i am", "i feel", "i was", "i am feeling", "we are", "she is", "he is", "they are"]
-neg_t = [
+# ---------------------------------------------------------------------------
+# Synthetic augmentation (TRAINING SET ONLY)
+# Replace your old "Synthetic negation examples" block with this one.
+# It goes right after the clean_text loop and before you build train_text etc.
+# ---------------------------------------------------------------------------
+import random
+
+random.seed(42)
+
+subjects_be = ["i am", "i was", "i am feeling", "we are", "she is", "he is", "they are"]
+subjects_feel = subjects_be + ["i feel", "i felt"]
+
+# Adjective-style emotion words ("i am happy", "i am not happy")
+adjectives = {
+    "joy":      ["happy", "glad", "joyful", "cheerful", "delighted", "excited",
+                 "pleased", "thrilled", "content", "great", "wonderful", "fine", "relieved"],
+    "sadness":  ["sad", "unhappy", "depressed", "miserable", "heartbroken", "gloomy",
+                 "hopeless", "lonely", "upset", "down", "blue"],
+    "anger":    ["angry", "furious", "mad", "annoyed", "irritated", "enraged", "outraged"],
+    "fear":     ["scared", "afraid", "terrified", "anxious", "nervous", "worried", "frightened"],
+    "surprise": ["surprised", "shocked", "amazed", "astonished", "stunned"],
+}
+
+# Verb-style emotion words ("i am crying", "i am not crying")
+verbs_ing = {
+    "sadness": ["crying", "weeping", "sobbing", "grieving", "mourning"],
+    "joy":     ["laughing", "smiling", "celebrating", "dancing", "grinning"],
+    "anger":   ["shouting", "yelling", "fuming", "screaming with rage"],
+    "fear":    ["trembling", "shaking with fear", "panicking"],
+}
+
+# Negated negative emotion -> joy (a 6-class model has no "neutral" label)
+# Negated joy -> sadness
+negated_target = {
+    "joy": "sadness",
+    "sadness": "joy",
+    "anger": "joy",
+    "fear": "joy",
+}
+
+neg_adj_templates = [
     "{s} not {w}", "{s} never {w}", "{s} not at all {w}", "{s} not very {w}",
     "i do not feel {w}", "i did not feel {w}", "i do not feel very {w}",
-    "i did not feel so {w}", "i was not feeling {w}", "i am not feeling {w}"
+    "i was not feeling {w}", "i am not feeling {w}",
 ]
-pos_t = ["{s} {w}", "{s} really {w}", "{s} so {w}"]
+pos_adj_templates = ["{s} {w}", "{s} really {w}", "{s} so {w}", "{s} very {w}"]
+
+neg_verb_templates = ["{s} not {v}", "{s} no longer {v}", "{s} never {v}", "{s} not {v} anymore"]
+pos_verb_templates = ["{s} {v}", "{s} still {v}", "{s} just {v}"]
+
+love_things = [
+    # objects and places
+    "this ice cream", "this song", "this movie", "this place", "this pizza", "my new phone",
+    # people and family
+    "my father", "my mother", "my dad", "my mom", "my brother", "my sister",
+    "my son", "my daughter", "my wife", "my husband", "my girlfriend", "my boyfriend",
+    "my grandmother", "my grandfather", "my parents", "my kids", "my family",
+    "my friends", "my best friend", "my dog", "you", "myself",
+]
+love_templates = ["i love {x}", "i really love {x}", "i love {x} so much", "i adore {x}"]
+love_phrases = [
+    "i am in love", "i am so in love", "i am madly in love", "i am deeply in love",
+    "i fell in love", "i am falling in love", "we are in love", "she is in love",
+    "he is in love", "they are in love", "i am in love with her", "i am in love with him",
+    "i am in love with you", "i feel so in love", "i feel loved", "i feel so much love",
+    "i love you", "i love you so much", "i adore you", "i care about you deeply",
+]
 
 rows = []
-for _ in range(3000):
-    s = random.choice(subjects)
-    if random.random() < 0.5:
-        rows.append((random.choice(neg_t).format(s=s, w=random.choice(joy_words)), "sadness"))
-    else:
-        rows.append((random.choice(neg_t).format(s=s, w=random.choice(sad_words)), "joy"))
+
+# 1) Negated adjectives (e.g. "i am not happy")
+for _ in range(2500):
+    emo = random.choice(list(negated_target))
+    w = random.choice(adjectives[emo])
+    s = random.choice(subjects_feel)
+    text = random.choice(neg_adj_templates).format(s=s, w=w)
+    rows.append((text, negated_target[emo]))
+
+# 2) Positive adjectives (e.g. "i am really happy")
 for _ in range(1500):
-    s = random.choice(subjects)
-    if random.random() < 0.5:
-        rows.append((random.choice(pos_t).format(s=s, w=random.choice(joy_words)), "joy"))
-    else:
-        rows.append((random.choice(pos_t).format(s=s, w=random.choice(sad_words)), "sadness"))
+    emo = random.choice(list(adjectives))
+    w = random.choice(adjectives[emo])
+    s = random.choice(subjects_feel)
+    rows.append((random.choice(pos_adj_templates).format(s=s, w=w), emo))
 
-aug_df = pd.DataFrame(rows, columns=["text", "emotion"])
-train_df = pd.concat([train_df, aug_df], ignore_index=True).sample(frac=1, random_state=42).reset_index(drop=True)
+# 3) Negated verbs (e.g. "i am not crying")
+for _ in range(1500):
+    emo = random.choice(list(verbs_ing))
+    v = random.choice(verbs_ing[emo])
+    s = random.choice(subjects_be)
+    rows.append((random.choice(neg_verb_templates).format(s=s, v=v), negated_target[emo]))
 
+# 4) Positive verbs (e.g. "i am crying")
+for _ in range(1000):
+    emo = random.choice(list(verbs_ing))
+    v = random.choice(verbs_ing[emo])
+    s = random.choice(subjects_be)
+    rows.append((random.choice(pos_verb_templates).format(s=s, v=v), emo))
+
+# 5) Love: "in love" phrases and "i love <thing>"
+for _ in range(1500):
+    rows.append((random.choice(love_phrases), "love"))
+for _ in range(1000):
+    rows.append((random.choice(love_templates).format(x=random.choice(love_things)), "love"))
+
+# 6) Negated love -> sadness
+for _ in range(300):
+    rows.append((random.choice(["i am not in love", "i am not in love anymore",
+                                "i do not love you anymore", "we are not in love anymore"]),
+                 "sadness"))
+
+aug_df = pd.DataFrame(rows, columns=["text", "emotion"]).drop_duplicates()
+print("Augmented rows:", len(aug_df))
+
+train_df = (
+    pd.concat([train_df, aug_df], ignore_index=True)
+    .sample(frac=1, random_state=42)
+    .reset_index(drop=True)
+)
+
+# ---------------------------------------------------------------------------
+# After retraining, test with these (add to your final checks):
+# ["i am in love", "i love this ice cream", "i love myself", "i love my father",
+#  "i love my mother", "i am crying", "i am not crying",
+#  "i am not happy", "i am not scared", "i am not angry"]
+# ---------------------------------------------------------------------------
 
 # Separate text and emotion labels
 train_text = train_df["text"]
